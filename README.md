@@ -1,5 +1,15 @@
 # Pace Calculator
 
+## What This Project Does
+
+Pace Calculator is a small web app for runners and cyclists who want to quickly calculate pace, distance, or total time.
+
+It helps you:
+
+- convert between distance, time, and pace
+- work with running and cycling training numbers without doing the math manually
+- use either kilometers or miles in a simple browser-based interface
+
 Fast Vue app for running and cycling pace math.
 
 ## Stack
