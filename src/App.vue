@@ -1,16 +1,25 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-
-const KM_PER_MILE = 1.609344
-
-const distanceFormatter = new Intl.NumberFormat('en-US', {
-  maximumFractionDigits: 2,
-})
-
-const speedFormatter = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-})
+import {
+  KM_PER_MILE,
+  SPLIT_CHECKPOINTS_KM,
+  SPLIT_CHECKPOINTS_MI,
+  distancePresets,
+  distanceToKilometers,
+  distanceToMiles,
+  formatClock,
+  formatDistance,
+  formatEditableNumber,
+  formatSpeed,
+  getPaceCheer,
+  getTimeCheer,
+  parseClockToSeconds,
+  parsePaceToSeconds,
+  parsePositiveNumber,
+} from './utils.js'
+import CheerCard from './components/CheerCard.vue'
+import ResultCard from './components/ResultCard.vue'
+import SplitsTable from './components/SplitsTable.vue'
 
 const activeTab = ref('time')
 
@@ -52,23 +61,6 @@ watch(activeTab, (mode) => {
   syncModeToUrl(mode)
 })
 
-const distancePresets = {
-  km: [
-    { label: '5K', value: '5' },
-    { label: '10K', value: '10' },
-    { label: 'Half', value: '21.1' },
-    { label: 'Marathon', value: '42.2' },
-    { label: '100K', value: '100' },
-  ],
-  mi: [
-    { label: '5 mi', value: '5' },
-    { label: '10 mi', value: '10' },
-    { label: 'Half', value: '13.1' },
-    { label: 'Marathon', value: '26.2' },
-    { label: '100 mi', value: '100' },
-  ],
-}
-
 const fromTime = reactive({
   distance: '10',
   distanceUnit: 'km',
@@ -84,173 +76,6 @@ const fromPace = reactive({
   paceMinutes: '5',
   paceSeconds: '0',
 })
-
-function parsePositiveNumber(value) {
-  if (value === '' || value === null || value === undefined) {
-    return null
-  }
-
-  const parsed = Number(value)
-
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null
-  }
-
-  return parsed
-}
-
-function parseNonNegativeNumber(value) {
-  if (value === '' || value === null || value === undefined) {
-    return 0
-  }
-
-  const parsed = Number(value)
-
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    return 0
-  }
-
-  return parsed
-}
-
-function parseClockToSeconds(hours, minutes, seconds) {
-  const hasValue = [hours, minutes, seconds].some(
-    (value) => value !== '' && value !== null && value !== undefined,
-  )
-
-  if (!hasValue) {
-    return null
-  }
-
-  const totalSeconds =
-    parseNonNegativeNumber(hours) * 3600 +
-    parseNonNegativeNumber(minutes) * 60 +
-    parseNonNegativeNumber(seconds)
-
-  return totalSeconds > 0 ? totalSeconds : null
-}
-
-function parsePaceToSeconds(minutes, seconds) {
-  const hasValue = [minutes, seconds].some(
-    (value) => value !== '' && value !== null && value !== undefined,
-  )
-
-  if (!hasValue) {
-    return null
-  }
-
-  const totalSeconds =
-    parseNonNegativeNumber(minutes) * 60 + parseNonNegativeNumber(seconds)
-
-  return totalSeconds > 0 ? totalSeconds : null
-}
-
-function distanceToKilometers(distance, unit) {
-  return unit === 'km' ? distance : distance * KM_PER_MILE
-}
-
-function distanceToMiles(distance, unit) {
-  return unit === 'mi' ? distance : distance / KM_PER_MILE
-}
-
-function formatEditableNumber(value) {
-  return String(Number(value.toFixed(2)))
-}
-
-function formatClock(totalSeconds) {
-  if (!Number.isFinite(totalSeconds)) {
-    return '--'
-  }
-
-  const rounded = Math.max(0, Math.round(totalSeconds))
-  const hours = Math.floor(rounded / 3600)
-  const minutes = Math.floor((rounded % 3600) / 60)
-  const seconds = rounded % 60
-
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-  }
-
-  return `${minutes}:${String(seconds).padStart(2, '0')}`
-}
-
-function formatDistance(value) {
-  return distanceFormatter.format(value)
-}
-
-function formatSpeed(value) {
-  return speedFormatter.format(value)
-}
-
-function getTimeCheer(result) {
-  if (!result) {
-    return {
-      title: 'A sweet little goal starts here',
-      body: 'Add your distance and finish time, and I will turn them into a calm pace plan you can follow with confidence.',
-    }
-  }
-
-  if (result.pacePerKm <= 240) {
-    return {
-      title: 'Fast feet, brave heart',
-      body: 'That is a spicy goal pace. Start smooth, stay tall, and let the fast finish come to you.',
-    }
-  }
-
-  if (result.pacePerKm <= 330) {
-    return {
-      title: 'Strong and sparkly',
-      body: 'This sits in a really confident zone. Relax your shoulders, trust your rhythm, and collect each split one by one.',
-    }
-  }
-
-  if (result.pacePerKm <= 420) {
-    return {
-      title: 'Steady and lovely',
-      body: 'This is a sustainable groove. Gentle effort, tidy breathing, and patient pacing will carry you far.',
-    }
-  }
-
-  return {
-    title: 'Kind pace, big win',
-    body: 'Easy miles absolutely count. Keep it comfy, keep it consistent, and enjoy building the finish you want.',
-  }
-}
-
-function getPaceCheer(result) {
-  if (!result) {
-    return {
-      title: 'Pick a pace that feels good',
-      body: 'Enter your target pace and distance, and I will map out the finish time for your happy little goal.',
-    }
-  }
-
-  if (result.totalSeconds <= 1800) {
-    return {
-      title: 'Quick, punchy, and fun',
-      body: 'That is a short strong effort. Stay light on your feet and let your cadence do the work.',
-    }
-  }
-
-  if (result.totalSeconds <= 3600) {
-    return {
-      title: 'Right in the sweet spot',
-      body: 'This looks wonderfully doable. Settle in early, stay patient in the middle, and finish proud.',
-    }
-  }
-
-  if (result.totalSeconds <= 7200) {
-    return {
-      title: 'Endurance cutie mode',
-      body: 'Longer efforts love calm pacing. Sip, breathe, and keep stacking smooth little minutes.',
-    }
-  }
-
-  return {
-    title: 'Adventure pace, full heart',
-    body: 'Big distances are just lots of small brave moments. Stay kind to yourself and keep moving forward.',
-  }
-}
 
 function setDistance(form, value) {
   form.distance = value
@@ -359,6 +184,52 @@ const paceToTime = computed(() => {
 
 const timeCheer = computed(() => getTimeCheer(timeToPace.value))
 const paceCheer = computed(() => getPaceCheer(paceToTime.value))
+
+// Error feedback: only show when the user has partially filled in values
+const timeInputError = computed(() => {
+  const dist = parsePositiveNumber(fromTime.distance)
+  const secs = parseClockToSeconds(fromTime.hours, fromTime.minutes, fromTime.seconds)
+  if (!dist && !secs) return null
+  if (!dist) return 'Enter a distance greater than zero.'
+  if (!secs) return 'Enter a time greater than zero.'
+  return null
+})
+
+const paceInputError = computed(() => {
+  const dist = parsePositiveNumber(fromPace.distance)
+  const secs = parsePaceToSeconds(fromPace.paceMinutes, fromPace.paceSeconds)
+  if (!dist && !secs) return null
+  if (!dist) return 'Enter a distance greater than zero.'
+  if (!secs) return 'Enter a pace greater than zero.'
+  return null
+})
+
+// Splits table
+const timeToPaceSplits = computed(() => {
+  const r = timeToPace.value
+  if (!r) return null
+  const checkpoints =
+    fromTime.distanceUnit === 'km'
+      ? SPLIT_CHECKPOINTS_KM.filter((d) => d <= r.distanceKm + 0.01)
+      : SPLIT_CHECKPOINTS_MI.filter((d) => d <= r.distanceMiles + 0.01)
+  return checkpoints.map((d) => ({
+    distance: d,
+    elapsedSeconds: d * (fromTime.distanceUnit === 'km' ? r.pacePerKm : r.pacePerMile),
+  }))
+})
+
+const paceToTimeSplits = computed(() => {
+  const r = paceToTime.value
+  if (!r) return null
+  const checkpoints =
+    fromPace.distanceUnit === 'km'
+      ? SPLIT_CHECKPOINTS_KM.filter((d) => d <= r.distanceKm + 0.01)
+      : SPLIT_CHECKPOINTS_MI.filter((d) => d <= r.distanceMiles + 0.01)
+  return checkpoints.map((d) => ({
+    distance: d,
+    elapsedSeconds: d * (fromPace.distanceUnit === 'km' ? r.pacePerKm : r.pacePerMile),
+  }))
+})
 </script>
 
 <template>
@@ -387,7 +258,6 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
             </p>
           </div>
         </div>
-
       </header>
 
       <section class="panel flex-1">
@@ -414,7 +284,7 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
               type="button"
               @click="activeTab = 'time'"
             >
-              Time -> Pace
+              Time &rarr; Pace
             </button>
             <button
               :class="['tab-button', { 'tab-button-active': activeTab === 'pace' }]"
@@ -423,11 +293,12 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
               type="button"
               @click="activeTab = 'pace'"
             >
-              Pace -> Time
+              Pace &rarr; Time
             </button>
           </div>
         </div>
 
+        <!-- Time → Pace tab -->
         <article v-if="activeTab === 'time'" class="mt-6 flex flex-col gap-6" role="tabpanel">
           <div class="grid gap-5">
             <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -440,6 +311,7 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
                   min="0"
                   step="0.01"
                   inputmode="decimal"
+                  autocomplete="off"
                   placeholder="10"
                 />
               </label>
@@ -490,6 +362,7 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
                   min="0"
                   step="1"
                   inputmode="numeric"
+                  autocomplete="off"
                   placeholder="0"
                 />
               </label>
@@ -503,6 +376,7 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
                   min="0"
                   step="1"
                   inputmode="numeric"
+                  autocomplete="off"
                   placeholder="50"
                 />
               </label>
@@ -516,26 +390,27 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
                   min="0"
                   step="1"
                   inputmode="numeric"
+                  autocomplete="off"
                   placeholder="0"
                 />
               </label>
             </div>
           </div>
 
-          <div aria-live="polite" class="grid gap-3 sm:grid-cols-2">
-            <div class="result-card result-card-primary">
-              <p class="result-label">Pace /km</p>
-              <p class="result-value">
-                {{ timeToPace ? `${formatClock(timeToPace.pacePerKm)} /km` : '--' }}
-              </p>
-            </div>
+          <p v-if="timeInputError" class="text-sm text-rose-500" role="alert">
+            {{ timeInputError }}
+          </p>
 
-            <div class="result-card">
-              <p class="result-label">Pace /mile</p>
-              <p class="result-value">
-                {{ timeToPace ? `${formatClock(timeToPace.pacePerMile)} /mi` : '--' }}
-              </p>
-            </div>
+          <div aria-live="polite" class="grid gap-3 sm:grid-cols-2">
+            <ResultCard
+              label="Pace /km"
+              :value="timeToPace ? `${formatClock(timeToPace.pacePerKm)} /km` : '--'"
+              :primary="true"
+            />
+            <ResultCard
+              label="Pace /mile"
+              :value="timeToPace ? `${formatClock(timeToPace.pacePerMile)} /mi` : '--'"
+            />
           </div>
 
           <div class="support-card text-sm leading-6 text-slate-600">
@@ -550,15 +425,15 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
             </template>
           </div>
 
-          <div class="cheer-card">
-            <p class="note-label">Cheer note</p>
-            <h3 class="cheer-title">{{ timeCheer.title }}</h3>
-            <p class="mt-2 text-sm leading-6 text-slate-600 sm:text-base">
-              {{ timeCheer.body }}
-            </p>
+          <div v-if="timeToPaceSplits" class="support-card">
+            <p class="note-label mb-3">Splits</p>
+            <SplitsTable :splits="timeToPaceSplits" :unit="fromTime.distanceUnit" />
           </div>
+
+          <CheerCard :title="timeCheer.title" :body="timeCheer.body" />
         </article>
 
+        <!-- Pace → Time tab -->
         <article v-else class="mt-6 flex flex-col gap-6" role="tabpanel">
           <div class="grid gap-5">
             <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -571,6 +446,7 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
                   min="0"
                   step="0.01"
                   inputmode="decimal"
+                  autocomplete="off"
                   placeholder="10"
                 />
               </label>
@@ -622,6 +498,7 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
                     min="0"
                     step="1"
                     inputmode="numeric"
+                    autocomplete="off"
                     placeholder="5"
                   />
                 </label>
@@ -635,6 +512,7 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
                     min="0"
                     step="1"
                     inputmode="numeric"
+                    autocomplete="off"
                     placeholder="0"
                   />
                 </label>
@@ -662,27 +540,27 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
             </div>
           </div>
 
+          <p v-if="paceInputError" class="text-sm text-rose-500" role="alert">
+            {{ paceInputError }}
+          </p>
+
           <div aria-live="polite" class="grid gap-3 sm:grid-cols-2">
-            <div class="result-card result-card-primary sm:col-span-2">
-              <p class="result-label">Total time</p>
-              <p class="result-value">
-                {{ paceToTime ? formatClock(paceToTime.totalSeconds) : '--' }}
-              </p>
-            </div>
-
-            <div class="result-card">
-              <p class="result-label">Equivalent /km</p>
-              <p class="result-value text-2xl sm:text-3xl">
-                {{ paceToTime ? `${formatClock(paceToTime.pacePerKm)} /km` : '--' }}
-              </p>
-            </div>
-
-            <div class="result-card">
-              <p class="result-label">Equivalent /mile</p>
-              <p class="result-value text-2xl sm:text-3xl">
-                {{ paceToTime ? `${formatClock(paceToTime.pacePerMile)} /mi` : '--' }}
-              </p>
-            </div>
+            <ResultCard
+              label="Total time"
+              :value="paceToTime ? formatClock(paceToTime.totalSeconds) : '--'"
+              :primary="true"
+              class="sm:col-span-2"
+            />
+            <ResultCard
+              label="Equivalent /km"
+              :value="paceToTime ? `${formatClock(paceToTime.pacePerKm)} /km` : '--'"
+              :small="true"
+            />
+            <ResultCard
+              label="Equivalent /mile"
+              :value="paceToTime ? `${formatClock(paceToTime.pacePerMile)} /mi` : '--'"
+              :small="true"
+            />
           </div>
 
           <div class="support-card text-sm leading-6 text-slate-600">
@@ -697,13 +575,12 @@ const paceCheer = computed(() => getPaceCheer(paceToTime.value))
             </template>
           </div>
 
-          <div class="cheer-card">
-            <p class="note-label">Cheer note</p>
-            <h3 class="cheer-title">{{ paceCheer.title }}</h3>
-            <p class="mt-2 text-sm leading-6 text-slate-600 sm:text-base">
-              {{ paceCheer.body }}
-            </p>
+          <div v-if="paceToTimeSplits" class="support-card">
+            <p class="note-label mb-3">Splits</p>
+            <SplitsTable :splits="paceToTimeSplits" :unit="fromPace.distanceUnit" />
           </div>
+
+          <CheerCard :title="paceCheer.title" :body="paceCheer.body" />
         </article>
       </section>
     </div>
